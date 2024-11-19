@@ -5,7 +5,7 @@ export function WinMode() {
   element.classList.add("win-container")
   WinMode.render(element);
 
-  return { element };
+  return { element, cleanup: () => {} };
 }
 
 WinMode.render = (element) => {
@@ -19,5 +19,5 @@ WinMode.render = (element) => {
 
   playAgainButtonElement.addEventListener("click", () => {
     resetGameStatus(); // status is reset via status
-  });
+  }, {once: true});
 };

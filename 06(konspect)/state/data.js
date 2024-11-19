@@ -1,3 +1,4 @@
+import { EVENTS } from "./EVENTS.js";
 import { GAME_STATUSES } from "./GAME_STATUSES.js";
 import { MOVE_DIRECTIONS } from "./MOVE_DIRECTIONS.js";
 
@@ -34,6 +35,10 @@ export function setGridSize(value) {
   _state.settings.gridSize.rowsCount = Number(gridSizeRowsCount);
 }
 
+export function getPoints() {
+  return _state.points;
+}
+
 export function getPointsToLose() {
   return _state.settings.pointsToLose;
 }
@@ -62,17 +67,32 @@ export function getColumnsCountGridSize() {
 
 let _observers = [];
 
-function _notify() {
-  _observers.forEach((o) => o());
+function _notify(type, payload = {}) {
+  const event = {
+    type,
+    payload,
+  };
+  _observers.forEach((o) => o(event));
 }
 
 export function subscribe(callback) {
   _observers.push(callback);
+
+  window._observers = _observers;
+
+  return () => {
+    unsubscribe(callback);
+    window._observers = _observers;
+  };
+}
+
+export function unsubscribe(callback) {
+  _observers = _observers.filter((o) => o !== callback);
 }
 
 export function resetGameStatus() {
   _state.status = GAME_STATUSES.SETTINGS;
-  _notify();
+  _notify(EVENTS.STATUS_CHANGED);
 }
 
 // getter / selector
@@ -104,9 +124,9 @@ export function getPlayer2Position() {
 export function startGame() {
   _state.status = GAME_STATUSES.IN_PROGRESS;
 
-  _teleportGoogle();
+  _notify(EVENTS.STATUS_CHANGED);
 
-  _notify();
+  _teleportGoogle();
 
   jumpIntervalId = setInterval(_escapeGoogle, 2000);
 }
@@ -152,14 +172,18 @@ export function movePlayer(playerNumber, direction) {
   if (!_isInsideGrid(newCoords)) {
     return;
   }
-
+  let prevPositions = { ..._state.positions["player" + playerNumber] };
   _state.positions["player" + playerNumber] = newCoords;
 
   if (_isPlayerInOnePositionWithGoogle(playerNumber)) {
     _catchGoogle(playerNumber);
   }
 
-  _notify();
+  _notify(EVENTS.PLAYER_MOVED, {
+    newPositions: { ...newCoords },
+    prevPositions: prevPositions,
+    playerNumber: playerNumber,
+  });
 }
 
 function _isPlayerInOnePositionWithGoogle(playerNumber) {
@@ -178,7 +202,9 @@ function _catchGoogle(playerNumber) {
   // Win check
   if (_state.points["player" + playerNumber] === _state.settings.pointsToWin) {
     _state.status = GAME_STATUSES.WIN;
+    _notify(EVENTS.STATUS_CHANGED);
     clearInterval(jumpIntervalId);
+    resettingPoints();
   }
 
   _teleportGoogle();
@@ -194,14 +220,37 @@ function _isInsideGrid(coords) {
   return isInsideGrid;
 }
 
+function resettingPoints() {
+  //  _state.points = "0";
+
+  // ForIn
+  _state.points = {
+    google: 0,
+    player1: 0,
+    player2: 0,
+  };
+}
+
 //JSDOC
 /**
  * эта функция вызывается когда гугл убежал, то есть его никто не поймал и он по таймеру прыгнул
  */
 function _escapeGoogle() {
-  if (_state.points["player" + playerNumber] === _state.settings.pointsToLose) {
+  // if (_state.points["player" + playerNumber] === _state.settings.pointsToLose) {
+  //   _state.status = GAME_STATUSES.LOSE;
+  //   clearInterval(jumpIntervalId);
+  // }
+  // проиграть грустную мелодию
+  _notify(EVENTS.GOOGLE_ESCAPED);
+
+  _state.points.google++;
+
+  if (_state.points.google === _state.settings.pointsToLose) {
     _state.status = GAME_STATUSES.LOSE;
     clearInterval(jumpIntervalId);
+    resettingPoints();
+    
+    _notify(EVENTS.STATUS_CHANGED);
   }
 
   _teleportGoogle();
@@ -219,9 +268,14 @@ function _teleportGoogle() {
     _teleportGoogle();
     return;
   }
+
+  let prevPositions = { ..._state.positions.google };
   _state.positions.google.x = newX;
   _state.positions.google.y = newY;
-  _notify();
+  _notify(EVENTS.GOOGLE_JUMPED, {
+    newPositions: { ..._state.positions.google },
+    prevPositions: prevPositions,
+  });
 }
 
 function _getRandomInt(max) {

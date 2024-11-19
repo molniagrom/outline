@@ -1,52 +1,43 @@
-import { getGooglePosition, getGridSize, getPlayer1Position, getPlayer2Position, subscribe } from "../../state/data.js"
-import { GoogleImg } from "../createImgGoogle.js"
+import { getGridSize } from "../../state/data.js";
+import { Cell } from "./cell.component.js";
 
 export const Grid = () => {
-    console.log('Grid creating...')
-        const element = document.createElement('table')
+  console.log("Grid creating...");
+  const element = document.createElement("table");
 
-        subscribe(() => {
-            Grid.render(element)
-        })
+  const localState = {
+    childrenCleanUps: [],
+  };
 
-        Grid.render(element)
-        
-       return {element};
-}
+  Grid.render(element, localState);
 
-Grid.render = (element) => {
-    console.log('Grid rendering...')
-    element.innerHTML = '';
-    const gridSize = getGridSize()
-        const googlePosition = getGooglePosition()
-        const player1Position = getPlayer1Position()
-        const player2Position = getPlayer2Position()
+  return {
+    element,
+    cleanup: () => {
+      localState.childrenCleanUps.forEach((cc) => cc());
+    },
+  };
+};
 
-        for (let y = 0; y < gridSize.rowsCount; y++) {
-            const row = document.createElement('tr')
+Grid.render = (element, localState) => {
+  console.log("Grid rendering...");
+  element.innerHTML = "";
 
-            for (let x = 0; x < gridSize.columnsCount; x++) { 
-                const cell = document.createElement('td')
-                cell.classList.add("td-cent")
-                
-                if (x === googlePosition.x && y === googlePosition.y) {
-                    const imgObject = GoogleImg();
-                     cell.append(imgObject.element)
-                }
+  localState.childrenCleanUps.forEach((cc) => cc());
+  localState.childrenCleanUps = [];
+  const gridSize = getGridSize();
 
-                if (x === player1Position.x && y === player1Position.y ) {
-                    cell.append('👨‍💼')
-                }
+  for (let y = 0; y < gridSize.rowsCount; y++) {
+    const row = document.createElement("tr");
 
-                if (x === player2Position.x && y === player2Position.y ) {
-                    cell.append('👨')
-                }
+    for (let x = 0; x < gridSize.columnsCount; x++) {
+      const cellInstance = Cell(x, y);
+      localState.childrenCleanUps.push(cellInstance.cleanup);
+      row.append(cellInstance.element);
+    }
 
-                row.append(cell)
-            }
+    element.append(row);
+  }
 
-            element.append(row)            
-        }
-
-        window.grid = element;
-}
+  window.grid = element;
+};

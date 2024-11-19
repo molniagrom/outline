@@ -6,7 +6,7 @@ export function LoseMode() {
 
   LoseMode.render(element);
 
-  return { element };
+  return { element, cleanup: () => {} };
 }
 
 LoseMode.render = (element) => {

@@ -13,7 +13,7 @@ export function SettingsMode() {
   element.classList.add("box");
   SettingsMode.render(element);
 
-  return { element };
+  return { element, cleanup: () => {} };
 }
 
 SettingsMode.render = (element) => {
